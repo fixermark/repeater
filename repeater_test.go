@@ -125,3 +125,5 @@ func TestStopsRetryingWhenThresholdExceeded(t *testing.T) {
 		t.Errorf("Error message was wrong: saw '%s'", err.Error())
 	}
 }
+
+// TODO: test that repeater respects backoff logic
