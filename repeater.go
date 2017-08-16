@@ -1,5 +1,6 @@
-// Simple repetition wrapper: runs an operation indefinitely, optionally with backoff.
-
+// Package repeater provides a simple repetition wrapper that retries a fallible
+// operation with backoff. The operation can be retried a finite amount of times
+// or indefinitely.
 package repeater
 
 import (
@@ -7,21 +8,17 @@ import (
 	"time"
 )
 
+// A repeatable function. If the function returns an error and the retry
+// thresholds are not exceeded, it will be tried again.
 type Repeatable func() error
 
+// A repeater, encapsulating the logic for retrying a Repeatable operation.
 type Repeater interface {
 	// Execute Repeatable, and if it returns a non-nil error, repeat
 	// execution. If the threshold of repetitions is exceeded, Repeat
 	// returns the last error sent.
 	Repeat(r Repeatable) error
 }
-
-// TODO(mtomczak): definitely tests in this one. ;) Also, constructors for a
-// basic exponential (linear component, exponential component) and a const
-// default exponential (Default)
-//
-// Lets use time.Durations for the input values, since time.Sleep uses Duration
-// as input
 
 type repeaterImpl struct {
 	initialRepeatTime time.Duration
@@ -48,22 +45,20 @@ var defaultInfiniteRepeaterImpl = repeaterImpl{
 	maxRetries:        0,
 }
 
+// Get a default repeater (100ms initial repeat time, each retry 2x time after
+// previous, fail after 10 retries).
 func Default() Repeater {
 	return &defaultRepeaterImpl
 }
 
+// Get a default repeater that retries indefinitely.
 func DefaultInfinite() Repeater {
 	return &defaultInfiniteRepeaterImpl
 }
 
-func NewInfiniteRepeater(
-	initial time.Duration,
-	max time.Duration,
-	linear time.Duration,
-	exponential float64) Repeater {
-	return NewRepeater(initial, max, linear, exponential, 0)
-}
-
+// Get a repeater with the specified initial retry delay, maximum retry delay,
+// and max retries. Delay expansion is calculated as (new delay = (old delay +
+// linear) * exponential). If 0 is specified for maxRetries, retry indefinitely.
 func NewRepeater(
 	initial time.Duration,
 	max time.Duration,
@@ -71,6 +66,16 @@ func NewRepeater(
 	exponential float64,
 	maxRetries int) Repeater {
 	return &repeaterImpl{initial, max, linear, exponential, maxRetries}
+}
+
+// Get a new repeater with the specified parameters that retries
+// indefinitely. See NewRepeater for details.
+func NewInfiniteRepeater(
+	initial time.Duration,
+	max time.Duration,
+	linear time.Duration,
+	exponential float64) Repeater {
+	return NewRepeater(initial, max, linear, exponential, 0)
 }
 
 func (r *repeaterImpl) Repeat(do Repeatable) error {
